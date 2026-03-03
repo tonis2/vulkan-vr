@@ -12,17 +12,29 @@ extern fn char* dlerror() @extern("dlerror");
 // Library handle
 void* xr_lib_handle;
 
-// Helper: load a single function via xrGetInstanceProcAddr
+// Helper: load a function via dlsym (for core functions - goes through loader dispatch)
+fn bool load_sym(char* name, void* out_fn_ptr)
+{
+	void* sym = dlsym(xr_lib_handle, name);
+	if (!sym)
+	{
+		io::printfn("  Failed to load via dlsym: %s", name);
+		return false;
+	}
+	*(void**)out_fn_ptr = sym;
+	return true;
+}
+
+// Helper: load a function via xrGetInstanceProcAddr (for extension functions)
 fn bool load_fn(XrInstance instance, char* name, void* out_fn_ptr)
 {
 	PFN_xrVoidFunction pfn;
-	XrResult result = xrGetInstanceProcAddr(instance, name, &pfn);
+	XrResult result = getInstanceProcAddr(instance, name, &pfn);
 	if (failed(result) || pfn == null)
 	{
 		io::printfn("  Failed to load: %s (result=%d)", name, result);
 		return false;
 	}
-	// Copy raw function pointer value into the target variable
 	*(void**)out_fn_ptr = (void*)pfn;
 	return true;
 }
@@ -48,13 +60,13 @@ fn bool load()
 		xr_lib_handle = null;
 		return false;
 	}
-	xrGetInstanceProcAddr = (PfnXrGetInstanceProcAddr)proc;
+	getInstanceProcAddr = (PfnXrGetInstanceProcAddr)proc;
 
-	// Load pre-instance functions (instance = null)
+	// Load pre-instance functions via dlsym
 	bool ok = true;
-	ok = load_fn(null, "xrEnumerateInstanceExtensionProperties", &xrEnumerateInstanceExtensionProperties) && ok;
-	ok = load_fn(null, "xrEnumerateApiLayerProperties", &xrEnumerateApiLayerProperties) && ok;
-	ok = load_fn(null, "xrCreateInstance", &xrCreateInstance) && ok;
+	ok = load_sym("xrEnumerateInstanceExtensionProperties", &enumerateInstanceExtensionProperties) && ok;
+	ok = load_sym("xrEnumerateApiLayerProperties", &enumerateApiLayerProperties) && ok;
+	ok = load_sym("xrCreateInstance", &createInstance) && ok;
 
 	if (!ok)
 	{
@@ -74,46 +86,46 @@ fn bool load_instance_fns(XrInstance instance)
 	io::printn("Loading OpenXR instance functions...");
 	bool ok = true;
 
-	// Core instance functions
-	ok = load_fn(instance, "xrDestroyInstance", &xrDestroyInstance) && ok;
-	ok = load_fn(instance, "xrGetInstanceProperties", &xrGetInstanceProperties) && ok;
-	ok = load_fn(instance, "xrGetSystem", &xrGetSystem) && ok;
-	ok = load_fn(instance, "xrGetSystemProperties", &xrGetSystemProperties) && ok;
-	ok = load_fn(instance, "xrCreateSession", &xrCreateSession) && ok;
-	ok = load_fn(instance, "xrDestroySession", &xrDestroySession) && ok;
-	ok = load_fn(instance, "xrBeginSession", &xrBeginSession) && ok;
-	ok = load_fn(instance, "xrEndSession", &xrEndSession) && ok;
-	ok = load_fn(instance, "xrRequestExitSession", &xrRequestExitSession) && ok;
+	// Core instance functions via dlsym (goes through loader dispatch table)
+	ok = load_sym("xrDestroyInstance", &destroyInstance) && ok;
+	ok = load_sym("xrGetInstanceProperties", &getInstanceProperties) && ok;
+	ok = load_sym("xrGetSystem", &getSystem) && ok;
+	ok = load_sym("xrGetSystemProperties", &getSystemProperties) && ok;
+	ok = load_sym("xrCreateSession", &createSession) && ok;
+	ok = load_sym("xrDestroySession", &destroySession) && ok;
+	ok = load_sym("xrBeginSession", &beginSession) && ok;
+	ok = load_sym("xrEndSession", &endSession) && ok;
+	ok = load_sym("xrRequestExitSession", &requestExitSession) && ok;
 
 	// Frame functions
-	ok = load_fn(instance, "xrWaitFrame", &xrWaitFrame) && ok;
-	ok = load_fn(instance, "xrBeginFrame", &xrBeginFrame) && ok;
-	ok = load_fn(instance, "xrEndFrame", &xrEndFrame) && ok;
+	ok = load_sym("xrWaitFrame", &waitFrame) && ok;
+	ok = load_sym("xrBeginFrame", &beginFrame) && ok;
+	ok = load_sym("xrEndFrame", &endFrame) && ok;
 
 	// View functions
-	ok = load_fn(instance, "xrLocateViews", &xrLocateViews) && ok;
-	ok = load_fn(instance, "xrEnumerateViewConfigurations", &xrEnumerateViewConfigurations) && ok;
-	ok = load_fn(instance, "xrGetViewConfigurationProperties", &xrGetViewConfigurationProperties) && ok;
-	ok = load_fn(instance, "xrEnumerateViewConfigurationViews", &xrEnumerateViewConfigurationViews) && ok;
+	ok = load_sym("xrLocateViews", &locateViews) && ok;
+	ok = load_sym("xrEnumerateViewConfigurations", &enumerateViewConfigurations) && ok;
+	ok = load_sym("xrGetViewConfigurationProperties", &getViewConfigurationProperties) && ok;
+	ok = load_sym("xrEnumerateViewConfigurationViews", &enumerateViewConfigurationViews) && ok;
 
 	// Swapchain functions
-	ok = load_fn(instance, "xrCreateSwapchain", &xrCreateSwapchain) && ok;
-	ok = load_fn(instance, "xrDestroySwapchain", &xrDestroySwapchain) && ok;
-	ok = load_fn(instance, "xrEnumerateSwapchainImages", &xrEnumerateSwapchainImages) && ok;
-	ok = load_fn(instance, "xrAcquireSwapchainImage", &xrAcquireSwapchainImage) && ok;
-	ok = load_fn(instance, "xrWaitSwapchainImage", &xrWaitSwapchainImage) && ok;
-	ok = load_fn(instance, "xrReleaseSwapchainImage", &xrReleaseSwapchainImage) && ok;
+	ok = load_sym("xrCreateSwapchain", &createSwapchain) && ok;
+	ok = load_sym("xrDestroySwapchain", &destroySwapchain) && ok;
+	ok = load_sym("xrEnumerateSwapchainImages", &enumerateSwapchainImages) && ok;
+	ok = load_sym("xrAcquireSwapchainImage", &acquireSwapchainImage) && ok;
+	ok = load_sym("xrWaitSwapchainImage", &waitSwapchainImage) && ok;
+	ok = load_sym("xrReleaseSwapchainImage", &releaseSwapchainImage) && ok;
 
 	// Space functions
-	ok = load_fn(instance, "xrCreateReferenceSpace", &xrCreateReferenceSpace) && ok;
-	ok = load_fn(instance, "xrGetReferenceSpaceBoundsRect", &xrGetReferenceSpaceBoundsRect) && ok;
-	ok = load_fn(instance, "xrDestroySpace", &xrDestroySpace) && ok;
-	ok = load_fn(instance, "xrLocateSpace", &xrLocateSpace) && ok;
+	ok = load_sym("xrCreateReferenceSpace", &createReferenceSpace) && ok;
+	ok = load_sym("xrGetReferenceSpaceBoundsRect", &getReferenceSpaceBoundsRect) && ok;
+	ok = load_sym("xrDestroySpace", &destroySpace) && ok;
+	ok = load_sym("xrLocateSpace", &locateSpace) && ok;
 
 	// Event and path functions
-	ok = load_fn(instance, "xrPollEvent", &xrPollEvent) && ok;
-	ok = load_fn(instance, "xrStringToPath", &xrStringToPath) && ok;
-	ok = load_fn(instance, "xrPathToString", &xrPathToString) && ok;
+	ok = load_sym("xrPollEvent", &pollEvent) && ok;
+	ok = load_sym("xrStringToPath", &stringToPath) && ok;
+	ok = load_sym("xrPathToString", &pathToString) && ok;
 
 	if (!ok)
 	{
@@ -122,20 +134,33 @@ fn bool load_instance_fns(XrInstance instance)
 	}
 	io::printn("  Core instance functions loaded");
 
-	// Vulkan KHR extension functions
-	ok = load_fn(instance, "xrGetVulkanGraphicsRequirementsKHR", &xrGetVulkanGraphicsRequirementsKHR);
+	// Extension functions - try dlsym first (loader exports trampolines that
+	// correctly unwrap instance handles), fall back to xrGetInstanceProcAddr
+	ok = load_sym("xrGetVulkanGraphicsRequirementsKHR", &getVulkanGraphicsRequirementsKHR);
+	if (!ok) ok = load_fn(instance, "xrGetVulkanGraphicsRequirementsKHR", &getVulkanGraphicsRequirementsKHR);
 	if (!ok) io::printn("  WARNING: Vulkan KHR functions not available");
 
-	load_fn(instance, "xrGetVulkanInstanceExtensionsKHR", &xrGetVulkanInstanceExtensionsKHR);
-	load_fn(instance, "xrGetVulkanDeviceExtensionsKHR", &xrGetVulkanDeviceExtensionsKHR);
-	load_fn(instance, "xrGetVulkanGraphicsDeviceKHR", &xrGetVulkanGraphicsDeviceKHR);
+	if (!load_sym("xrGetVulkanInstanceExtensionsKHR", &getVulkanInstanceExtensionsKHR)) {
+		load_fn(instance, "xrGetVulkanInstanceExtensionsKHR", &getVulkanInstanceExtensionsKHR);
+	}
+	if (!load_sym("xrGetVulkanDeviceExtensionsKHR", &getVulkanDeviceExtensionsKHR)) {
+		load_fn(instance, "xrGetVulkanDeviceExtensionsKHR", &getVulkanDeviceExtensionsKHR);
+	}
+	if (!load_sym("xrGetVulkanGraphicsDeviceKHR", &getVulkanGraphicsDeviceKHR)) {
+		load_fn(instance, "xrGetVulkanGraphicsDeviceKHR", &getVulkanGraphicsDeviceKHR);
+	}
 
 	// Hand tracking extension functions (optional)
-	bool hand_ok = load_fn(instance, "xrCreateHandTrackerEXT", &xrCreateHandTrackerEXT);
+	bool hand_ok = load_sym("xrCreateHandTrackerEXT", &createHandTrackerEXT);
+	if (!hand_ok) hand_ok = load_fn(instance, "xrCreateHandTrackerEXT", &createHandTrackerEXT);
 	if (hand_ok)
 	{
-		load_fn(instance, "xrDestroyHandTrackerEXT", &xrDestroyHandTrackerEXT);
-		load_fn(instance, "xrLocateHandJointsEXT", &xrLocateHandJointsEXT);
+		if (!load_sym("xrDestroyHandTrackerEXT", &destroyHandTrackerEXT)) {
+			load_fn(instance, "xrDestroyHandTrackerEXT", &destroyHandTrackerEXT);
+		}
+		if (!load_sym("xrLocateHandJointsEXT", &locateHandJointsEXT)) {
+			load_fn(instance, "xrLocateHandJointsEXT", &locateHandJointsEXT);
+		}
 		io::printn("  Hand tracking functions loaded");
 	}
 	else

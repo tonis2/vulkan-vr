@@ -57,17 +57,17 @@ fn int main(String[] args)
 		0))
 	{
 		io::printn("Failed to create OpenXR session with Vulkan binding");
-		vr_vulkan::cleanup_vulkan(&vkCtx);
 		vr_openxr::cleanup(&xrCtx);
+		vr_vulkan::cleanup_vulkan(&vkCtx);
 		return 1;
 	}
-	
+
 	// Create stereo swapchains
 	if (!vr_openxr::create_stereo_swapchains(&xrCtx))
 	{
 		io::printn("Failed to create stereo swapchains");
-		vr_vulkan::cleanup_vulkan(&vkCtx);
 		vr_openxr::cleanup(&xrCtx);
+		vr_vulkan::cleanup_vulkan(&vkCtx);
 		return 1;
 	}
 	
@@ -100,9 +100,9 @@ fn int main(String[] args)
 		for (int j = 0; j < 10000000; j++) {}
 	}
 	
-	// Cleanup
-	vr_vulkan::cleanup_vulkan(&vkCtx);
+	// Cleanup (OpenXR first since it references Vulkan resources)
 	vr_openxr::cleanup(&xrCtx);
+	vr_vulkan::cleanup_vulkan(&vkCtx);
 	
 	return 0;
 }

@@ -8,7 +8,8 @@
       "Bash(c3c_path=\"/run/media/tonis/extra/binaries/c3/c3c\")",
       "Bash($c3c_path --stdlib /dev/null)",
       "Bash(xargs cat:*)",
-      "Bash(c3c build:*)"
+      "Bash(c3c build:*)",
+      "Bash(c3c run:*)"
     ]
   }
 }
