@@ -34,7 +34,7 @@ struct OpenXRContext
 // Check OpenXR result and log error
 fn void check_xr(xr::XrResult result, char* operation)
 {
-	if (xr::xr_failed(result))
+	if (xr::failed(result))
 	{
 		io::printfn("OpenXR Error during %s: %d", operation, result);
 	}
@@ -69,7 +69,14 @@ fn void copy_str(char* dest, char* src, uint maxLen)
 fn bool init_instance(OpenXRContext* ctx)
 {
 	io::printn("Initializing OpenXR...");
-	
+
+	// Load OpenXR loader dynamically
+	if (!xr::load())
+	{
+		io::printn("ERROR: Failed to load OpenXR runtime");
+		return false;
+	}
+
 	// Check available extensions
 	uint extCount = 0;
 	check_xr(xr::xrEnumerateInstanceExtensionProperties(null, 0, &extCount, null), 
@@ -129,10 +136,10 @@ fn bool init_instance(OpenXRContext* ctx)
 	// Create application info
 	xr::XrApplicationInfo appInfo;
 	copy_str(&appInfo.applicationName[0], &APP_NAME[0], 128);
-	appInfo.applicationVersion = (xr::XrVersion)xr::xr_make_version(1, 0, 0);
+	appInfo.applicationVersion = (xr::XrVersion)xr::make_version(1, 0, 0);
 	copy_str(&appInfo.engineName[0], &ENGINE_NAME[0], 128);
-	appInfo.engineVersion = (xr::XrVersion)xr::xr_make_version(1, 0, 0);
-	appInfo.apiVersion = (xr::XrVersion)xr::xr_make_version(1, 0, 0);
+	appInfo.engineVersion = (xr::XrVersion)xr::make_version(1, 0, 0);
+	appInfo.apiVersion = (xr::XrVersion)xr::make_version(1, 0, 0);
 	
 	// Create instance
 	xr::XrInstanceCreateInfo createInfo;
@@ -146,7 +153,7 @@ fn bool init_instance(OpenXRContext* ctx)
 	createInfo.enabledExtensionNames = &extNames[0];
 	
 	xr::XrResult result = xr::xrCreateInstance(&createInfo, &ctx.instance);
-	if (xr::xr_failed(result))
+	if (xr::failed(result))
 	{
 		io::printfn("ERROR: xrCreateInstance failed with result %d", result);
 		return false;
@@ -157,7 +164,14 @@ fn bool init_instance(OpenXRContext* ctx)
 		io::printn("ERROR: Failed to create OpenXR instance (null handle)!");
 		return false;
 	}
-	
+
+	// Load all instance-level and extension function pointers
+	if (!xr::load_instance_fns(ctx.instance))
+	{
+		io::printn("ERROR: Failed to load OpenXR instance functions");
+		return false;
+	}
+
 	io::printn("✓ OpenXR instance created successfully");
 	
 	// Get runtime info
@@ -168,9 +182,9 @@ fn bool init_instance(OpenXRContext* ctx)
 	
 	io::printfn("Runtime: %s", &instProps.runtimeName[0]);
 	io::printfn("Version: %d.%d.%d",
-		xr::xr_version_major(instProps.runtimeVersion),
-		xr::xr_version_minor(instProps.runtimeVersion),
-		xr::xr_version_patch(instProps.runtimeVersion));
+		xr::version_major(instProps.runtimeVersion),
+		xr::version_minor(instProps.runtimeVersion),
+		xr::version_patch(instProps.runtimeVersion));
 	
 	return true;
 }
@@ -305,11 +319,48 @@ fn bool create_reference_space(OpenXRContext* ctx)
 fn bool create_hand_trackers(OpenXRContext* ctx)
 {
 	if (!ctx.handTrackingEnabled) return true;
-	
-	// TODO: Hand tracker creation requires extension function pointers
-	// These functions are loaded dynamically, not linked directly
-	io::printn("Hand tracking available but not yet implemented");
-	
+
+	if (xr::xrCreateHandTrackerEXT == null)
+	{
+		io::printn("Hand tracking enabled but extension functions not loaded");
+		ctx.handTrackingEnabled = false;
+		return true;
+	}
+
+	// Create left hand tracker
+	xr::XrHandTrackerCreateInfoEXT leftInfo;
+	leftInfo.type = xr::XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT;
+	leftInfo.next = null;
+	leftInfo.hand = xr::XR_HAND_LEFT_EXT;
+	leftInfo.handJointSet = xr::XR_HAND_JOINT_SET_DEFAULT_EXT;
+
+	xr::XrResult result = xr::xrCreateHandTrackerEXT(ctx.session, &leftInfo, &ctx.leftHandTracker);
+	if (xr::failed(result))
+	{
+		io::printfn("WARNING: Failed to create left hand tracker: %d", result);
+		ctx.handTrackingEnabled = false;
+		return true;
+	}
+
+	// Create right hand tracker
+	xr::XrHandTrackerCreateInfoEXT rightInfo;
+	rightInfo.type = xr::XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT;
+	rightInfo.next = null;
+	rightInfo.hand = xr::XR_HAND_RIGHT_EXT;
+	rightInfo.handJointSet = xr::XR_HAND_JOINT_SET_DEFAULT_EXT;
+
+	result = xr::xrCreateHandTrackerEXT(ctx.session, &rightInfo, &ctx.rightHandTracker);
+	if (xr::failed(result))
+	{
+		io::printfn("WARNING: Failed to create right hand tracker: %d", result);
+		// Left tracker already created, destroy it
+		xr::xrDestroyHandTrackerEXT(ctx.leftHandTracker);
+		ctx.leftHandTracker = null;
+		ctx.handTrackingEnabled = false;
+		return true;
+	}
+
+	io::printn("✓ Hand trackers created");
 	return true;
 }
 
@@ -376,10 +427,24 @@ fn bool poll_events(OpenXRContext* ctx)
 fn bool create_vulkan_session(OpenXRContext* ctx, void* vulkanInstance, void* physicalDevice, void* device, uint queueFamilyIndex, uint queueIndex)
 {
 	io::printn("Creating OpenXR session with Vulkan graphics binding...");
-	
-	// Note: xrGetVulkanGraphicsRequirementsKHR should be called here but requires
-	// dynamic loading via xrGetInstanceProcAddr. Skipping for now.
-	
+
+	// Call xrGetVulkanGraphicsRequirementsKHR (required before session creation)
+	if (xr::xrGetVulkanGraphicsRequirementsKHR != null)
+	{
+		xr::XrGraphicsRequirementsVulkanKHR graphicsReqs;
+		graphicsReqs.type = xr::XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR;
+		graphicsReqs.next = null;
+		check_xr(xr::xrGetVulkanGraphicsRequirementsKHR(ctx.instance, ctx.systemId, &graphicsReqs),
+			"get Vulkan graphics requirements");
+		io::printfn("Vulkan API version: min %d.%d.%d, max %d.%d.%d",
+			xr::version_major(graphicsReqs.minApiVersionSupported),
+			xr::version_minor(graphicsReqs.minApiVersionSupported),
+			xr::version_patch(graphicsReqs.minApiVersionSupported),
+			xr::version_major(graphicsReqs.maxApiVersionSupported),
+			xr::version_minor(graphicsReqs.maxApiVersionSupported),
+			xr::version_patch(graphicsReqs.maxApiVersionSupported));
+	}
+
 	// Create graphics binding
 	xr::XrGraphicsBindingVulkanKHR graphicsBinding;
 	graphicsBinding.type = xr::XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
@@ -479,22 +544,23 @@ fn bool create_stereo_swapchains(OpenXRContext* ctx)
 fn void cleanup(OpenXRContext* ctx)
 {
 	io::printn("Cleaning up OpenXR...");
-	
-	// TODO: Hand tracker cleanup requires extension function pointers
-	// if (ctx.handTrackingEnabled)
-	// {
-	//     if (ctx.leftHandTracker) xrDestroyHandTrackerEXT(ctx.leftHandTracker);
-	//     if (ctx.rightHandTracker) xrDestroyHandTrackerEXT(ctx.rightHandTracker);
-	// }
-	
+
+	if (ctx.handTrackingEnabled && xr::xrDestroyHandTrackerEXT != null)
+	{
+		if (ctx.leftHandTracker) xr::xrDestroyHandTrackerEXT(ctx.leftHandTracker);
+		if (ctx.rightHandTracker) xr::xrDestroyHandTrackerEXT(ctx.rightHandTracker);
+	}
+
 	for (uint i = 0; i < EYE_COUNT; i++)
 	{
 		if (ctx.swapchains[i]) xr::xrDestroySwapchain(ctx.swapchains[i]);
 	}
-	
+
 	if (ctx.referenceSpace) xr::xrDestroySpace(ctx.referenceSpace);
 	if (ctx.session) xr::xrDestroySession(ctx.session);
 	if (ctx.instance) xr::xrDestroyInstance(ctx.instance);
-	
+
+	xr::unload();
+
 	io::printn("OpenXR cleanup complete");
 }

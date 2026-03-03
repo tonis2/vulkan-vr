@@ -247,12 +247,12 @@ typedef XrActionSet = void*;
 typedef XrHandTrackerEXT = void*;
 
 // Helper functions (converted from macros)
-fn bool xr_succeeded(XrResult result) => result >= 0;
-fn bool xr_failed(XrResult result) => result < 0;
-fn bool xr_unqualified_success(XrResult result) => result == 0;
+fn bool succeeded(XrResult result) => result >= 0;
+fn bool failed(XrResult result) => result < 0;
+fn bool unqualified_success(XrResult result) => result == 0;
 
 // Helper functions
-fn ulong xr_make_version(uint major, uint minor, uint patch)
+fn ulong make_version(uint major, uint minor, uint patch)
 {
 	return (((ulong)major & 0xffffULL) << 48) | (((ulong)minor & 0xffffULL) << 32) | ((ulong)patch & 0xffffffffULL);
 }
@@ -743,91 +743,113 @@ const XrSwapchainUsageFlags XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT = 0x00000040;
 const XrSwapchainUsageFlags XR_SWAPCHAIN_USAGE_INPUT_ATTACHMENT_BIT_MND = 0x00000080;
 
 // Version helper functions (converted from macros)
-fn uint xr_version_major(XrVersion version) => (uint)((version >> 48) & 0xffffULL);
-fn uint xr_version_minor(XrVersion version) => (uint)((version >> 32) & 0xffffULL);
-fn uint xr_version_patch(XrVersion version) => (uint)(version & 0xffffffffULL);
+fn uint version_major(XrVersion version) => (uint)((version >> 48) & 0xffffULL);
+fn uint version_minor(XrVersion version) => (uint)((version >> 32) & 0xffffULL);
+fn uint version_patch(XrVersion version) => (uint)(version & 0xffffffffULL);
 
-// Core API Functions
+// Generic void function pointer (used by xrGetInstanceProcAddr)
+alias PFN_xrVoidFunction = fn void();
 
-extern fn XrResult xrEnumerateInstanceExtensionProperties(
+// xrGetInstanceProcAddr - resolved first via dlsym
+alias PfnXrGetInstanceProcAddr = fn XrResult(XrInstance instance, char* name, PFN_xrVoidFunction* function);
+PfnXrGetInstanceProcAddr xrGetInstanceProcAddr;
+
+// Core API function pointer types and globals
+
+alias PfnXrEnumerateInstanceExtensionProperties = fn XrResult(
 	char* layerName,
 	uint propertyCapacityInput,
 	uint* propertyCountOutput,
 	XrExtensionProperties* properties
 );
+PfnXrEnumerateInstanceExtensionProperties xrEnumerateInstanceExtensionProperties;
 
-extern fn XrResult xrCreateInstance(
+alias PfnXrCreateInstance = fn XrResult(
 	XrInstanceCreateInfo* createInfo,
 	XrInstance* instance
 );
+PfnXrCreateInstance xrCreateInstance;
 
-extern fn XrResult xrDestroyInstance(
+alias PfnXrDestroyInstance = fn XrResult(
 	XrInstance instance
 );
+PfnXrDestroyInstance xrDestroyInstance;
 
-extern fn XrResult xrGetInstanceProperties(
+alias PfnXrGetInstanceProperties = fn XrResult(
 	XrInstance instance,
 	XrInstanceProperties* instanceProperties
 );
+PfnXrGetInstanceProperties xrGetInstanceProperties;
 
-extern fn XrResult xrEnumerateApiLayerProperties(
+alias PfnXrEnumerateApiLayerProperties = fn XrResult(
 	uint propertyCapacityInput,
 	uint* propertyCountOutput,
 	void* properties
 );
+PfnXrEnumerateApiLayerProperties xrEnumerateApiLayerProperties;
 
-extern fn XrResult xrGetSystem(
+alias PfnXrGetSystem = fn XrResult(
 	XrInstance instance,
 	XrSystemGetInfo* getInfo,
 	XrSystemId* systemId
 );
+PfnXrGetSystem xrGetSystem;
 
-extern fn XrResult xrGetSystemProperties(
+alias PfnXrGetSystemProperties = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	XrSystemProperties* properties
 );
+PfnXrGetSystemProperties xrGetSystemProperties;
 
-extern fn XrResult xrCreateSession(
+alias PfnXrCreateSession = fn XrResult(
 	XrInstance instance,
 	XrSessionCreateInfo* createInfo,
 	XrSession* session
 );
+PfnXrCreateSession xrCreateSession;
 
-extern fn XrResult xrDestroySession(
+alias PfnXrDestroySession = fn XrResult(
 	XrSession session
 );
+PfnXrDestroySession xrDestroySession;
 
-extern fn XrResult xrBeginSession(
+alias PfnXrBeginSession = fn XrResult(
 	XrSession session,
 	XrSessionBeginInfo* beginInfo
 );
+PfnXrBeginSession xrBeginSession;
 
-extern fn XrResult xrEndSession(
+alias PfnXrEndSession = fn XrResult(
 	XrSession session
 );
+PfnXrEndSession xrEndSession;
 
-extern fn XrResult xrRequestExitSession(
+alias PfnXrRequestExitSession = fn XrResult(
 	XrSession session
 );
+PfnXrRequestExitSession xrRequestExitSession;
 
-extern fn XrResult xrWaitFrame(
+alias PfnXrWaitFrame = fn XrResult(
 	XrSession session,
 	XrFrameWaitInfo* frameWaitInfo,
 	XrFrameState* frameState
 );
+PfnXrWaitFrame xrWaitFrame;
 
-extern fn XrResult xrBeginFrame(
+alias PfnXrBeginFrame = fn XrResult(
 	XrSession session,
 	XrFrameBeginInfo* frameBeginInfo
 );
+PfnXrBeginFrame xrBeginFrame;
 
-extern fn XrResult xrEndFrame(
+alias PfnXrEndFrame = fn XrResult(
 	XrSession session,
 	XrFrameEndInfo* frameEndInfo
 );
+PfnXrEndFrame xrEndFrame;
 
-extern fn XrResult xrLocateViews(
+alias PfnXrLocateViews = fn XrResult(
 	XrSession session,
 	XrViewLocateInfo* viewLocateInfo,
 	XrViewState* viewState,
@@ -835,23 +857,26 @@ extern fn XrResult xrLocateViews(
 	uint* viewCountOutput,
 	XrView* views
 );
+PfnXrLocateViews xrLocateViews;
 
-extern fn XrResult xrEnumerateViewConfigurations(
+alias PfnXrEnumerateViewConfigurations = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	uint viewConfigurationTypeCapacityInput,
 	uint* viewConfigurationTypeCountOutput,
 	XrViewConfigurationType* viewConfigurationTypes
 );
+PfnXrEnumerateViewConfigurations xrEnumerateViewConfigurations;
 
-extern fn XrResult xrGetViewConfigurationProperties(
+alias PfnXrGetViewConfigurationProperties = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	XrViewConfigurationType viewConfigurationType,
 	void* configurationProperties
 );
+PfnXrGetViewConfigurationProperties xrGetViewConfigurationProperties;
 
-extern fn XrResult xrEnumerateViewConfigurationViews(
+alias PfnXrEnumerateViewConfigurationViews = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	XrViewConfigurationType viewConfigurationType,
@@ -859,131 +884,154 @@ extern fn XrResult xrEnumerateViewConfigurationViews(
 	uint* viewCountOutput,
 	XrViewConfigurationView* views
 );
+PfnXrEnumerateViewConfigurationViews xrEnumerateViewConfigurationViews;
 
-extern fn XrResult xrCreateSwapchain(
+alias PfnXrCreateSwapchain = fn XrResult(
 	XrSession session,
 	XrSwapchainCreateInfo* createInfo,
 	XrSwapchain* swapchain
 );
+PfnXrCreateSwapchain xrCreateSwapchain;
 
-extern fn XrResult xrDestroySwapchain(
+alias PfnXrDestroySwapchain = fn XrResult(
 	XrSwapchain swapchain
 );
+PfnXrDestroySwapchain xrDestroySwapchain;
 
-extern fn XrResult xrEnumerateSwapchainImages(
+alias PfnXrEnumerateSwapchainImages = fn XrResult(
 	XrSwapchain swapchain,
 	uint imageCapacityInput,
 	uint* imageCountOutput,
 	void* images
 );
+PfnXrEnumerateSwapchainImages xrEnumerateSwapchainImages;
 
-extern fn XrResult xrAcquireSwapchainImage(
+alias PfnXrAcquireSwapchainImage = fn XrResult(
 	XrSwapchain swapchain,
 	void* acquireInfo,
 	uint* index
 );
+PfnXrAcquireSwapchainImage xrAcquireSwapchainImage;
 
-extern fn XrResult xrWaitSwapchainImage(
+alias PfnXrWaitSwapchainImage = fn XrResult(
 	XrSwapchain swapchain,
 	void* waitInfo
 );
+PfnXrWaitSwapchainImage xrWaitSwapchainImage;
 
-extern fn XrResult xrReleaseSwapchainImage(
+alias PfnXrReleaseSwapchainImage = fn XrResult(
 	XrSwapchain swapchain,
 	void* releaseInfo
 );
+PfnXrReleaseSwapchainImage xrReleaseSwapchainImage;
 
-extern fn XrResult xrCreateReferenceSpace(
+alias PfnXrCreateReferenceSpace = fn XrResult(
 	XrSession session,
 	XrReferenceSpaceCreateInfo* createInfo,
 	XrSpace* space
 );
+PfnXrCreateReferenceSpace xrCreateReferenceSpace;
 
-extern fn XrResult xrGetReferenceSpaceBoundsRect(
+alias PfnXrGetReferenceSpaceBoundsRect = fn XrResult(
 	XrSession session,
 	XrReferenceSpaceType referenceSpaceType,
 	void* bounds
 );
+PfnXrGetReferenceSpaceBoundsRect xrGetReferenceSpaceBoundsRect;
 
-extern fn XrResult xrDestroySpace(
+alias PfnXrDestroySpace = fn XrResult(
 	XrSpace space
 );
+PfnXrDestroySpace xrDestroySpace;
 
-extern fn XrResult xrLocateSpace(
+alias PfnXrLocateSpace = fn XrResult(
 	XrSpace space,
 	XrSpace baseSpace,
 	XrTime time,
 	XrSpaceLocation* location
 );
+PfnXrLocateSpace xrLocateSpace;
 
-extern fn XrResult xrPollEvent(
+alias PfnXrPollEvent = fn XrResult(
 	XrInstance instance,
 	XrEventDataBuffer* eventData
 );
+PfnXrPollEvent xrPollEvent;
 
-extern fn XrResult xrStringToPath(
+alias PfnXrStringToPath = fn XrResult(
 	XrInstance instance,
 	char* pathString,
 	XrPath* path
 );
+PfnXrStringToPath xrStringToPath;
 
-extern fn XrResult xrPathToString(
+alias PfnXrPathToString = fn XrResult(
 	XrInstance instance,
 	XrPath path,
 	uint bufferCapacityInput,
 	uint* bufferCountOutput,
 	char* buffer
 );
+PfnXrPathToString xrPathToString;
 
-// Vulkan-specific functions
-extern fn XrResult xrGetVulkanGraphicsRequirementsKHR(
+// Vulkan KHR extension function pointer types and globals
+
+alias PfnXrGetVulkanGraphicsRequirementsKHR = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	XrGraphicsRequirementsVulkanKHR* graphicsRequirements
 );
+PfnXrGetVulkanGraphicsRequirementsKHR xrGetVulkanGraphicsRequirementsKHR;
 
-extern fn XrResult xrGetVulkanInstanceExtensionsKHR(
+alias PfnXrGetVulkanInstanceExtensionsKHR = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	uint bufferCapacityInput,
 	uint* bufferCountOutput,
 	char* buffer
 );
+PfnXrGetVulkanInstanceExtensionsKHR xrGetVulkanInstanceExtensionsKHR;
 
-extern fn XrResult xrGetVulkanDeviceExtensionsKHR(
+alias PfnXrGetVulkanDeviceExtensionsKHR = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	uint bufferCapacityInput,
 	uint* bufferCountOutput,
 	char* buffer
 );
+PfnXrGetVulkanDeviceExtensionsKHR xrGetVulkanDeviceExtensionsKHR;
 
-extern fn XrResult xrGetVulkanGraphicsDeviceKHR(
+alias PfnXrGetVulkanGraphicsDeviceKHR = fn XrResult(
 	XrInstance instance,
 	XrSystemId systemId,
 	void* vkInstance,
 	void** vkPhysicalDevice
 );
+PfnXrGetVulkanGraphicsDeviceKHR xrGetVulkanGraphicsDeviceKHR;
 
-// Hand tracking functions
-extern fn XrResult xrCreateHandTrackerEXT(
+// Hand tracking extension function pointer types and globals
+
+alias PfnXrCreateHandTrackerEXT = fn XrResult(
 	XrSession session,
 	XrHandTrackerCreateInfoEXT* createInfo,
 	XrHandTrackerEXT* handTracker
 );
+PfnXrCreateHandTrackerEXT xrCreateHandTrackerEXT;
 
-extern fn XrResult xrDestroyHandTrackerEXT(
+alias PfnXrDestroyHandTrackerEXT = fn XrResult(
 	XrHandTrackerEXT handTracker
 );
+PfnXrDestroyHandTrackerEXT xrDestroyHandTrackerEXT;
 
-extern fn XrResult xrLocateHandJointsEXT(
+alias PfnXrLocateHandJointsEXT = fn XrResult(
 	XrHandTrackerEXT handTracker,
 	XrHandJointsLocateInfoEXT* locateInfo,
 	XrHandJointLocationsEXT* locations
 );
+PfnXrLocateHandJointsEXT xrLocateHandJointsEXT;
 
 // Error handling helpers
-fn char* xr_result_to_string(XrResult result)
+fn char* result_to_string(XrResult result)
 {
 	switch (result)
 	{
@@ -1019,10 +1067,10 @@ fn char* xr_result_to_string(XrResult result)
 	}
 }
 
-fn void xr_check(XrResult result, char* operation)
+fn void check(XrResult result, char* operation)
 {
-	if (xr_failed(result))
+	if (failed(result))
 	{
-		io::printfn("OpenXR Error during %s: %s (%d)", operation, xr_result_to_string(result), result);
+		io::printfn("OpenXR Error during %s: %s (%d)", operation, result_to_string(result), result);
 	}
 }

@@ -3,7 +3,7 @@
 	"warnings": ["no-unused", "no-deprecated"],
 	"authors": [],
 	"version": "0.1.0",
-	"dependency-search-paths": [ "./dependencies", "./lib"],
+	"dependency-search-paths": ["./lib"],
 	"dependencies": ["c3w", "vk", "xr"],
 	"features": ["WAYLAND"],
 	"sources": ["./src"],
@@ -18,8 +18,6 @@
 		"stream": {
 			"type": "executable",
 			"linked-libraries": ["vulkan"],
-			"linker-search-paths": ["./"],
-			"linked-libraries-local": ["openxr_loader"],
 			"sources": ["./src/main.c3", "./src/openxr_context.c3", "./src/vulkan_context.c3"]
 		}
 	},

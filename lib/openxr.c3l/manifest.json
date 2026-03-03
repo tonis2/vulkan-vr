@@ -3,7 +3,7 @@
 	"sources": ["xr/**"],
 	"targets": {
 		"linux-x64": {
-			"linked-libraries": ["openxr_loader"]
+			"linked-libraries": []
 		},
 		"macos-x64": {
 			"linked-libraries": []
@@ -12,7 +12,7 @@
 			"linked-libraries": []
 		},
 		"windows-x64": {
-			"linked-libraries": ["openxr_loader"]
+			"linked-libraries": []
 		}
 	}
 }

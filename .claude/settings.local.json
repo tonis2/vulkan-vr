@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ldconfig:*)",
+      "Bash(grep:*)",
+      "Bash(c3c --stdlib-path)",
+      "Bash(c3c --libdir)",
+      "Bash(c3c_path=\"/run/media/tonis/extra/binaries/c3/c3c\")",
+      "Bash($c3c_path --stdlib /dev/null)",
+      "Bash(xargs cat:*)",
+      "Bash(c3c build:*)"
+    ]
+  }
+}
